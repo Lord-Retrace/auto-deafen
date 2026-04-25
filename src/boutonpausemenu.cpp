@@ -23,13 +23,8 @@
 
 using namespace geode::prelude;
 
-// Forward Declaration
 class DiscordAuth;
 
-// Config
-// std::string buttonsprite = "deafen.png";
-// std::string CLIENT_ID = "1496863624428523690";
-// std::string CLIENT_SECRET = "ZWoreN9mvQxKvVw-cJ35puiTOZH1pJhq"; 
 std::string CLIENT_ID = "azdeferfrzrrzfrfzzjn";
 std::string CLIENT_SECRET = "ZZZZZZZZZZZZZ"; 
 
@@ -46,7 +41,6 @@ public:
     header[1] = static_cast<uint32_t>(payload.length());
     write(fd, header, sizeof(header));
     write(fd, payload.c_str(), payload.length());
-    // ✅ PLUS DE read() ICI — c'est ça qui volait les réponses
 }
 
     static void sendDeafenRequest(bool deafen);
@@ -84,7 +78,6 @@ public:
         return;
     }
 
-    // ✅ rpc.voice.write inclus - fonctionne en mode dev sur ton propre compte
     std::string url = "https://discord.com/oauth2/authorize?client_id=" + CLIENT_ID +
                       "&redirect_uri=http%3A%2F%2Flocalhost%3A8000" +
                       "&response_type=code" +
@@ -115,7 +108,7 @@ public:
         }
 
         listen(lsock, 1);
-        ready->store(true); // ✅ Port ouvert, le navigateur peut se connecter
+        ready->store(true);
         log::info("Serveur d'auth actif sur le port 8000...");
 
         struct timeval timeout;
@@ -186,7 +179,6 @@ public:
                         if (tokenRes) {
                             std::string token = tokenRes.unwrap();
                             geode::Loader::get()->queueInMainThread([token]() {
-    // Reset du socket pour forcer une reconnexion fraîche avec le nouveau token
                             if (DiscordRPC::s_socket != -1) {
                                 close(DiscordRPC::s_socket);
                                 DiscordRPC::s_socket = -1;
@@ -196,8 +188,6 @@ public:
                             Mod::get()->setSavedValue<std::string>("discord-token", token);
                         log::info("OAuth: Token sauvegardé !");
                             Notification::create("Discord connecté !", NotificationIcon::Success)->show();
-
-    // ✅ Lance la connexion RPC dans un thread séparé
                             std::thread([]() {
                             DiscordRPC::connectIfNeeded();
                             }).detach();
@@ -258,7 +248,7 @@ void DiscordRPC::connectIfNeeded() {
 
     if (!connected) {
         close(sock);
-        s_authenticated = false; // ✅
+        s_authenticated = false;
         return;
     }
 
@@ -310,7 +300,6 @@ void DiscordRPC::sendDeafenRequest(bool deafen) {
     std::thread([deafen]() {
         connectIfNeeded();
 
-        // ✅ On vérifie le booléen au lieu de juste s_socket >= 0
         if (!s_authenticated || s_socket < 0) {
             log::warn("sendDeafenRequest ignoré : pas authentifié");
             return;
@@ -619,13 +608,11 @@ protected:
         int saved1 = Mod::get()->getSavedValue<int>("auto-undeafen-trigger-percent", 100);
         m_percentInput1->setString(std::to_string(saved1).c_str());
 
-        // ✅ Si déjà authentifié, on saute directement au menu principal
         if (DiscordRPC::s_authenticated) {
             showMainMenu();
         }
-        // Sinon : si un token est sauvegardé mais pas encore connecté, on tente la connexion
         else if (!Mod::get()->getSavedValue<std::string>("discord-token").empty()) {
-            m_deafenBtn->setVisible(true); // Cache le bouton Connect pendant la tentative
+            m_deafenBtn->setVisible(true);
             std::thread([]() {
                 DiscordRPC::connectIfNeeded();
             }).detach();
@@ -642,7 +629,6 @@ protected:
     void onreconnectbutton(CCObject*) {
     log::info("Bouton reconnect cliqué !");
     
-    // ✅ Reset complet de la connexion Discord
     if (DiscordRPC::s_socket != -1) {
         close(DiscordRPC::s_socket);
         DiscordRPC::s_socket = -1;
@@ -749,7 +735,6 @@ void showMainMenu() {
 
 int m_authAttempts = 0;
 
-// Et remplace checkAuthStatus et waitForAuth par :
 void waitForAuth() {
     m_authAttempts = 0;
     this->schedule(schedule_selector(MyEditorPopup::checkAuthStatus), 0.5f);
@@ -775,31 +760,15 @@ void checkAuthStatus(float dt) {
 
     void onMyCheckboxToggle(cocos2d::CCObject* sender) {
         auto btn = static_cast<CCMenuItemToggler*>(sender);
-    // On récupère l'état visuel (si la croix est là ou pas)
-    // Attention : Geode inverse parfois la logique selon le sprite, 
-    // teste si isToggled() ou !isToggled() correspond à "activé" chez toi.
         bool isEnabled = !btn->isToggled(); 
     
     // ON SAUVEGARDE DANS LE MOD
         Mod::get()->setSavedValue("auto-deafen-enabled", isEnabled);
         log::info("Option auto-deafen changée : {}", isEnabled);
-
-        // 3. CHANGEMENT DE LA VARIABLE DE TEXTURE
-    // On vérifie la valeur de isEnabled pour choisir le nom de l'image
-    // if (isEnabled) {
-    //     buttonsprite = "deafen.png"_spr;
-    // } else {
-    //     buttonsprite = "undeafen.png"_spr;
-    // }
-    
-    // log::info("Nouvelle texture définie : {}", buttonsprite);
     }
 
     void onMyCheckboxToggle1(cocos2d::CCObject* sender) {
         auto btn = static_cast<CCMenuItemToggler*>(sender);
-    // On récupère l'état visuel (si la croix est là ou pas)
-    // Attention : Geode inverse parfois la logique selon le sprite, 
-    // teste si isToggled() ou !isToggled() correspond à "activé" chez toi.
         bool isEnabled = !btn->isToggled(); 
     
     // ON SAUVEGARDE DANS LE MOD
@@ -837,7 +806,6 @@ class $modify(MyPlayLayer, PlayLayer) {
         bool m_hasUndeafened = false; 
     };
 
-    // Cette fonction est appelée au tout début et à chaque fois que tu crash/recommences
     void resetLevel() {
     PlayLayer::resetLevel();
     m_fields->m_hasDeafened = false;
@@ -851,7 +819,6 @@ class $modify(MyPlayLayer, PlayLayer) {
     // On récupère l'état réel sauvegardé
     bool optionActivee = Mod::get()->getSavedValue<bool>("auto-deafen-enabled", true);
     
-    // SI L'OPTION EST DÉSACTIVÉE, ON S'ARRÊTE LÀ
     if (!optionActivee) {
         return; 
     }
@@ -861,7 +828,6 @@ class $modify(MyPlayLayer, PlayLayer) {
     float current = this->getCurrentPercent();
 
     // --- LOGIQUE DEAFEN ---
-    // On active si : % atteint ET pas encore fait
     if (current >= triggerDeafen && !m_fields->m_hasDeafened) {
         m_fields->m_hasDeafened = true;
         DiscordRPC::sendDeafenRequest(true);
@@ -869,7 +835,6 @@ class $modify(MyPlayLayer, PlayLayer) {
     }
 
     // --- LOGIQUE UNDEAFEN ---
-    // On active si : % atteint ET on a déjà deafen ET pas encore undeafen
     if (current >= triggerUndeafen && m_fields->m_hasDeafened && !m_fields->m_hasUndeafened) {
         m_fields->m_hasUndeafened = true;
         DiscordRPC::sendDeafenRequest(false);
@@ -886,11 +851,9 @@ class $modify(MyPauseLayer, PauseLayer) {
             DiscordRPC::sendDeafenRequest(false);
         }
 
-        // Ton code de bouton (logo.png) reste ici...
         auto menu = this->getChildByID("left-button-menu");
     if (!menu) menu = this->getChildByID("center-button-menu");
     if (menu) {
-        // ✅ On choisit le sprite selon l'option sauvegardée, avec _spr au compile-time
         CCSprite* sprite = nullptr;
         bool autoDeafenEnabled = Mod::get()->getSavedValue<bool>("auto-deafen-enabled", true);
         if (autoDeafenEnabled) {
@@ -903,7 +866,6 @@ class $modify(MyPauseLayer, PauseLayer) {
             sprite = CCSprite::create(path.c_str());
         }
         
-        // Fallback si la texture n'existe pas
         if (!sprite) sprite = CCSprite::createWithSpriteFrameName("GJ_plusBtn_001.png");
         
         if (sprite) {
@@ -925,18 +887,14 @@ class $modify(MyPauseLayer, PauseLayer) {
     }
 };
 
-// ON UTILISE PLAYLAYER POUR GERER LA REPRISE (Fonctionne avec Espace/Bouton/Echap)
 class $modify(MyPlayLayerResume, PlayLayer) {
     void resume() {
-        PlayLayer::resume(); // On laisse le jeu reprendre normalement
+        PlayLayer::resume();
 
-        // On vérifie si on doit redeafen
         if (Mod::get()->getSavedValue<bool>("UndeafenOnPause", true)) {
             int triggerDeafen = Mod::get()->getSavedValue<int>("auto-deafen-trigger-percent", 100);
             int triggerUndeafen = Mod::get()->getSavedValue<int>("auto-undeafen-trigger-percent", 100);
             float currentPercent = this->getCurrentPercent();
-
-            // Si on est dans la zone où on devrait être sourd
             if (currentPercent >= triggerDeafen && currentPercent < triggerUndeafen) {
                 log::info("Redeafen automatique à la reprise du jeu");
                 DiscordRPC::sendDeafenRequest(true);
@@ -949,11 +907,8 @@ class $modify(MyPlayerLayer, PlayerObject) {
     void playerDestroyed(bool p0) {
         PlayerObject::playerDestroyed(p0);
 
-        // On lance l'appel Discord immédiatement
         DiscordRPC::sendDeafenRequest(false);
 
-        // Pour la notification, on peut l'afficher sur le thread principal (Geode s'en occupe)
-        // Mais comme l'appel Discord est maintenant asynchrone, le lag aura disparu.
         log::info("Undeafen envoyé !");
     }
 };
