@@ -1,7 +1,7 @@
 {
 	"geode": "5.6.1",
 	"gd": {
-		"mac": "2.2081"
+		"mac": "*"
 	},
 	"id": "lordretrace.auto-deafen",
 	"name": "auto deafen MacOS",
